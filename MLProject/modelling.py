@@ -29,8 +29,8 @@ mlflow.set_experiment("Diabetes_Prediction_CI")
 
 def load_data():
     """Load train and test datasets."""
-    train = pd.read_csv('MLProject/diabetes_train.csv')
-    test = pd.read_csv('MLProject/diabetes_test.csv')
+    train = pd.read_csv('diabetes_train.csv')
+    test = pd.read_csv('diabetes_test.csv')
 
     X_train = train.drop('Diabetes_binary', axis=1)
     y_train = train['Diabetes_binary']
