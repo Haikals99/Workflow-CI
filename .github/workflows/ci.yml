@@ -1,40 +1,102 @@
-name: CI - Diabetes Model Training
+# CI/CD Advanced - Diabetes Model Training
+# Alur: training → simpan artefak ke repositori → build Docker → push ke Docker Hub
+
+name: CI - Diabetes Model Training (Advanced)
 
 on:
   push:
-    branches:
-      - main
+    branches: [main]
   workflow_dispatch:
 
 jobs:
-  train:
+  train-and-deploy:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
+      - name: Run actions/checkout
         uses: actions/checkout@v3
 
-      - name: Setup Python
+      - name: Set up Python 3.12.7
         uses: actions/setup-python@v4
         with:
-          python-version: '3.11'
+          python-version: '3.12.7'
+
+      - name: Check Env
+        run: |
+          python --version
+          pip --version
+          docker --version
+          ls -la
 
       - name: Install dependencies
         run: |
+          python -m pip install --upgrade pip
           pip install mlflow==2.19.0
           pip install -r MLProject/requirements.txt
 
-      - name: Run MLflow Project
+      - name: Run mlflow project
         env:
-          DAGSHUB_TOKEN: ${{ secrets.DAGSHUB_TOKEN }}
+          MLFLOW_TRACKING_URI: ${{ secrets.MLFLOW_TRACKING_URI }}
           MLFLOW_TRACKING_USERNAME: ${{ secrets.MLFLOW_TRACKING_USERNAME }}
           MLFLOW_TRACKING_PASSWORD: ${{ secrets.DAGSHUB_TOKEN }}
-          MLFLOW_TRACKING_URI: ${{ secrets.MLFLOW_TRACKING_URI }}
         run: |
           mlflow run MLProject --env-manager=local
 
-      - name: Upload model artifact to GitHub
-        uses: actions/upload-artifact@v4
+      - name: Get latest MLflow run_id
+        env:
+          MLFLOW_TRACKING_URI: ${{ secrets.MLFLOW_TRACKING_URI }}
+          MLFLOW_TRACKING_USERNAME: ${{ secrets.MLFLOW_TRACKING_USERNAME }}
+          MLFLOW_TRACKING_PASSWORD: ${{ secrets.DAGSHUB_TOKEN }}
+        run: |
+          python -c "
+          import mlflow, os
+          mlflow.set_tracking_uri(os.environ['MLFLOW_TRACKING_URI'])
+          client = mlflow.tracking.MlflowClient()
+          exp = client.get_experiment_by_name('diabetes_classification')
+          if exp is None: exp = client.get_experiment_by_name('Default')
+          runs = client.search_runs([exp.experiment_id], order_by=['start_time desc'], max_results=1)
+          run_id = runs[0].info.run_id
+          print(run_id)
+          with open('run_id.txt','w') as f: f.write(run_id)
+          "
+
+      - name: Store RUN_ID
+        run: echo "RUN_ID=$(cat run_id.txt)" >> $GITHUB_ENV
+
+      - name: Install Python dependencies (tambahan jika diperlukan)
+        run: pip install docker  # jika diperlukan, sebenarnya opsional
+
+      - name: Upload to GitHub (commit model ke branch artifacts)
+        env:
+          MLFLOW_TRACKING_URI: ${{ secrets.MLFLOW_TRACKING_URI }}
+          MLFLOW_TRACKING_USERNAME: ${{ secrets.MLFLOW_TRACKING_USERNAME }}
+          MLFLOW_TRACKING_PASSWORD: ${{ secrets.DAGSHUB_TOKEN }}
+        run: |
+          mlflow models download -m "runs:/${{ env.RUN_ID }}/model" -d model_dir
+          git config --global user.email "ci@github.com"
+          git config --global user.name "GitHub Actions"
+          git checkout -b artifacts
+          git add model_dir
+          git commit -m "Add model from run ${{ env.RUN_ID }}"
+          git push origin artifacts --force
+
+      - name: Build Docker Model
+        env:
+          MLFLOW_TRACKING_URI: ${{ secrets.MLFLOW_TRACKING_URI }}
+          MLFLOW_TRACKING_USERNAME: ${{ secrets.MLFLOW_TRACKING_USERNAME }}
+          MLFLOW_TRACKING_PASSWORD: ${{ secrets.DAGSHUB_TOKEN }}
+        run: |
+          mlflow models build-docker -m "runs:/${{ env.RUN_ID }}/model" -n "diabetes-model" --enable-mlserver
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v2
         with:
-          name: diabetes-model
-          path: mlruns/
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Tag Docker Image
+        run: |
+          docker tag diabetes-model ${{ secrets.DOCKERHUB_USERNAME }}/diabetes-model:latest
+
+      - name: Push Docker Image
+        run: docker push ${{ secrets.DOCKERHUB_USERNAME }}/diabetes-model:latest
