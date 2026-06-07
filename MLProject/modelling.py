@@ -3,16 +3,17 @@ import numpy as np
 import mlflow
 import mlflow.sklearn
 import mlflow.xgboost
-import dagshub
+import os
+import argparse
+import warnings
+warnings.filterwarnings('ignore')
+
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.linear_model import LogisticRegression
 from xgboost import XGBClassifier
 from sklearn.metrics import (accuracy_score, precision_score,
                              recall_score, f1_score, roc_auc_score)
 from imblearn.over_sampling import SMOTE
-import warnings
-import argparse
-warnings.filterwarnings('ignore')
 
 # Argument parser for MLflow Project
 parser = argparse.ArgumentParser()
@@ -21,20 +22,15 @@ parser.add_argument('--max_depth', type=int, default=3)
 parser.add_argument('--learning_rate', type=float, default=0.05)
 args = parser.parse_args()
 
-# DagsHub & MLflow configuration
-dagshub.init(
-    repo_owner='Haikals99',
-    repo_name='Eksperimen_SML_Haikal.S',
-    mlflow=True
-)
-
-mlflow.set_experiment("Diabetes_Prediction")
+# MLflow configuration via environment variables
+mlflow.set_tracking_uri(os.environ.get('MLFLOW_TRACKING_URI'))
+mlflow.set_experiment("Diabetes_Prediction_CI")
 
 
 def load_data():
     """Load train and test datasets."""
-    train = pd.read_csv('diabetes_preprocessing/diabetes_train.csv')
-    test = pd.read_csv('diabetes_preprocessing/diabetes_test.csv')
+    train = pd.read_csv('MLProject/diabetes_train.csv')
+    test = pd.read_csv('MLProject/diabetes_test.csv')
 
     X_train = train.drop('Diabetes_binary', axis=1)
     y_train = train['Diabetes_binary']
@@ -73,20 +69,6 @@ def train_model(X_train, X_test, y_train, y_test, model, model_name):
                 "random_state"    : model.get_params()['random_state'],
             }
             mlflow.log_params(params)
-
-            train_dataset = mlflow.data.from_pandas(
-                pd.concat([X_train, pd.Series(y_train, name='Diabetes_binary')], axis=1),
-                targets='Diabetes_binary',
-                name='train'
-            )
-            test_dataset = mlflow.data.from_pandas(
-                pd.concat([X_test, pd.Series(y_test, name='Diabetes_binary')], axis=1),
-                targets='Diabetes_binary',
-                name='eval'
-            )
-            mlflow.log_input(train_dataset, context='Train')
-            mlflow.log_input(test_dataset, context='Eval')
-
             model.fit(X_train, y_train)
             mlflow.sklearn.log_model(
                 model, "model",
