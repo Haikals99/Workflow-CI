@@ -51,13 +51,14 @@ jobs:
           python -c "
           import mlflow, os
           mlflow.set_tracking_uri(os.environ['MLFLOW_TRACKING_URI'])
-          client = mlflow.tracking.MlflowClient()
-          exp = client.get_experiment_by_name('diabetes_classification')
-          if exp is None: exp = client.get_experiment_by_name('Default')
-          runs = client.search_runs([exp.experiment_id], order_by=['start_time desc'], max_results=1)
-          run_id = runs[0].info.run_id
-          print(run_id)
-          with open('run_id.txt','w') as f: f.write(run_id)
+          # Ambil run terbaru dari seluruh eksperimen
+          runs_df = mlflow.search_runs(order_by=['start_time desc'], max_results=1)
+          if len(runs_df) == 0:
+              raise Exception('Tidak ada run ditemukan di tracking server.')
+          run_id = runs_df.iloc[0]['run_id']
+          print(f'Latest Run ID: {run_id}')
+          with open('run_id.txt','w') as f:
+              f.write(run_id)
           "
 
       - name: Store RUN_ID
