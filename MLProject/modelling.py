@@ -24,7 +24,6 @@ args = parser.parse_args()
 
 # MLflow configuration via environment variables
 mlflow.set_tracking_uri(os.environ.get('MLFLOW_TRACKING_URI'))
-mlflow.set_experiment("Diabetes_Prediction_CI")
 
 
 def load_data():
@@ -56,7 +55,8 @@ def train_model(X_train, X_test, y_train, y_test, model, model_name):
     """Train model with MLflow logging."""
     print(f"\nTraining {model_name}...")
 
-    with mlflow.start_run(run_name=model_name):
+    # Gunakan active run dari MLflow Project
+    with mlflow.start_run(run_name=model_name, nested=True):
 
         if model_name == "XGBoost":
             params = {
@@ -105,6 +105,11 @@ if __name__ == "__main__":
     X_train_bal, y_train_bal = apply_smote(X_train, y_train)
 
     print("\nStarting model training...")
+
+    # Log parameter utama ke parent run
+    mlflow.log_param("n_estimators", args.n_estimators)
+    mlflow.log_param("max_depth", args.max_depth)
+    mlflow.log_param("learning_rate", args.learning_rate)
 
     models = [
         (LogisticRegression(random_state=42, max_iter=1000), "Logistic_Regression"),
