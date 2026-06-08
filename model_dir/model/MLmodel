@@ -1,0 +1,44 @@
+artifact_path: model
+flavors:
+  python_function:
+    env:
+      conda: conda.yaml
+      virtualenv: python_env.yaml
+    loader_module: mlflow.sklearn
+    model_path: model.pkl
+    predict_fn: predict
+    python_version: 3.12.7
+  sklearn:
+    code: null
+    pickled_model: model.pkl
+    serialization_format: cloudpickle
+    sklearn_version: 1.9.0
+mlflow_version: 2.19.0
+model_size_bytes: 127566
+model_uuid: 639f748f785a4dd3bc7d78b7d84ef130
+run_id: 50fa185307ff4d89b518b79381154be4
+saved_input_example_info:
+  artifact_path: input_example.json
+  pandas_orient: split
+  serving_input_path: serving_input_example.json
+  type: dataframe
+signature:
+  inputs: '[{"type": "double", "name": "HighBP", "required": true}, {"type": "double",
+    "name": "HighChol", "required": true}, {"type": "double", "name": "CholCheck",
+    "required": true}, {"type": "double", "name": "BMI", "required": true}, {"type":
+    "double", "name": "Smoker", "required": true}, {"type": "double", "name": "Stroke",
+    "required": true}, {"type": "double", "name": "HeartDiseaseorAttack", "required":
+    true}, {"type": "double", "name": "PhysActivity", "required": true}, {"type":
+    "double", "name": "Fruits", "required": true}, {"type": "double", "name": "Veggies",
+    "required": true}, {"type": "double", "name": "HvyAlcoholConsump", "required":
+    true}, {"type": "double", "name": "AnyHealthcare", "required": true}, {"type":
+    "double", "name": "NoDocbcCost", "required": true}, {"type": "double", "name":
+    "GenHlth", "required": true}, {"type": "double", "name": "MentHlth", "required":
+    true}, {"type": "double", "name": "PhysHlth", "required": true}, {"type": "double",
+    "name": "DiffWalk", "required": true}, {"type": "double", "name": "Sex", "required":
+    true}, {"type": "double", "name": "Age", "required": true}, {"type": "double",
+    "name": "Education", "required": true}, {"type": "double", "name": "Income", "required":
+    true}]'
+  outputs: '[{"type": "long", "required": true}]'
+  params: null
+utc_time_created: '2026-06-08 01:39:43.689223'
