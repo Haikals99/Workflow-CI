@@ -93,10 +93,27 @@ jobs:
           MLFLOW_TRACKING_USERNAME: ${{ secrets.MLFLOW_TRACKING_USERNAME }}
           MLFLOW_TRACKING_PASSWORD: ${{ secrets.DAGSHUB_TOKEN }}
         run: |
-          mlflow models build-docker \
-            -m "runs:/${{ env.RUN_ID }}/model" \
-            -n "diabetes-model" \
-            --enable-mlserver
+          cat > Dockerfile << 'EOF'
+          FROM python:3.11-slim
+
+          WORKDIR /app
+
+          COPY model_dir/model /app/model
+          COPY MLProject/requirements.txt /app/requirements.txt
+
+          RUN pip install --no-cache-dir mlflow==2.19.0 && \
+              pip install --no-cache-dir -r requirements.txt
+
+          EXPOSE 8080
+
+          CMD ["mlflow", "models", "serve", \
+               "-m", "/app/model", \
+               "--host", "0.0.0.0", \
+               "--port", "8080", \
+               "--no-conda"]
+          EOF
+
+          docker build -t diabetes-model .
 
       - name: Log in to Docker Hub
         uses: docker/login-action@v3
